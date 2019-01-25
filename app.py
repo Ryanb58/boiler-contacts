@@ -15,12 +15,38 @@ from db import *
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 DB_PATH = "app.sqlite"
-CONN = None
+
+def setUpDB():
+    conn = create_connection(DB_PATH)
+    create_tables_if_not_exist(conn)
+    contact = select_contact_by_id(conn, 1)
+    if not contact:
+        contact_id = create_contact(
+            conn,
+            "Michael",
+            "Scott",
+            "Michael",
+            "m.scott@dundermifflin.com",
+            "321-555-2122",
+            "1"
+        )
+        print("Contact ID: {}".format(contact_id))
+    return conn
+
+CONN = setUpDB()
 
 class ContactServicer(contacts_pb2_grpc.ContactServiceServicer):
 
+    def dbConnect(self):
+        try:
+            self.dbconnection = sqlite3.connect("app.sqlite", check_same_thread=False)
+        except Error as e:
+            print(e)
+
+        return self.dbconnection
+
     def GetByID(self, request, context):
-        contact = select_contact_by_id(CONN, request.id)
+        contact = select_contact_by_id(self.dbConnect(), request.id)
         if contact:
             return contacts_pb2.Contact(
                 id=str(contact[0]),
@@ -36,7 +62,7 @@ class ContactServicer(contacts_pb2_grpc.ContactServiceServicer):
         context.set_code(grpc.StatusCode.NOT_FOUND)
 
     def List(self, request, context):
-        contacts = select_all_contacts(CONN)
+        contacts = select_all_contacts(self.dbConnect())
 
         serialized_contacts = []
         for contact in contacts:
@@ -62,7 +88,7 @@ class ContactServicer(contacts_pb2_grpc.ContactServiceServicer):
 
     def Create(self, request, context):
         contact_id = create_contact(
-            CONN,
+            self.dbConnect(),
             request.firstname,
             request.lastname,
             request.perfname,
@@ -87,12 +113,12 @@ class ContactServicer(contacts_pb2_grpc.ContactServiceServicer):
 
     def Update(self, request, context):
         # Check to see if they already exist:
-        if not select_contact_by_id(CONN, request.id):
+        if not select_contact_by_id(self.dbConnect(), request.id):
             context.set_code(grpc.StatusCode.NOT_FOUND)
             return
 
         update_contact(
-            CONN,
+            self.dbConnect(),
             request.id,
             request.firstname,
             request.lastname,
@@ -102,7 +128,7 @@ class ContactServicer(contacts_pb2_grpc.ContactServiceServicer):
             request.author
         )
 
-        contact = select_contact_by_id(CONN, request.id)
+        contact = select_contact_by_id(self.dbConnect(), request.id)
 
         print("Contact Updated: {}".format(request.id))
         return contacts_pb2.Contact(
@@ -118,11 +144,11 @@ class ContactServicer(contacts_pb2_grpc.ContactServiceServicer):
         )
 
     def Delete(self, request, context):
-        if not select_contact_by_id(CONN, request.id):
+        if not select_contact_by_id(self.dbConnect(), request.id):
             context.set_code(grpc.StatusCode.NOT_FOUND)
             return
 
-        delete_contact(CONN, request.id)
+        delete_contact(self.dbConnect(), request.id)
 
         print("Deleted contact {}".format(request.id))
         return empty_pb2.Empty()
@@ -139,23 +165,6 @@ def serve():
             time.sleep(_ONE_DAY_IN_SECONDS)
     except KeyboardInterrupt:
         server.stop(0)
-
-
-def setUpDB():
-    CONN = create_connection(DB_PATH)
-    create_tables_if_not_exist(CONN)
-    contact = select_contact_by_id(CONN, 1)
-    if not contact:
-        contact_id = create_contact(
-            CONN,
-            "Michael",
-            "Scott",
-            "Michael",
-            "m.scott@dundermifflin.com",
-            "321-555-2122",
-            "1"
-        )
-        print("Contact ID: {}".format(contact_id))
 
 
 if __name__ == '__main__':
