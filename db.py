@@ -113,6 +113,7 @@ def update_contact(conn, id, firstname, lastname, perfname, email, phone, author
               WHERE id = ?'''
     cur = conn.cursor()
     cur.execute(sql, [firstname, lastname, perfname, email, phone, author, id])
+    conn.commit()
 
 
 def delete_contact(conn, id):
@@ -124,3 +125,4 @@ def delete_contact(conn, id):
     """
     cur = conn.cursor()
     cur.execute("DELETE FROM contacts WHERE id=?", (id,))
+    conn.commit()

@@ -9,16 +9,14 @@ from db import *
 class TestContacts(unittest.TestCase):
 
     def setUp(self):
-
-        # Remove the old db.
-        if app.CONN:
-            app.CONN.close()
-
         if os.path.exists(app.DB_PATH):
             os.remove(app.DB_PATH)
 
         # setup the database again.
-        self.conn = create_connection(app.DB_PATH)
+
+
+        self.service = app.ContactServicer()
+        self.conn = self.service.dbConnect()
         create_tables_if_not_exist(self.conn)
         self.contact_id = create_contact(
             self.conn,
@@ -30,11 +28,7 @@ class TestContacts(unittest.TestCase):
             "1"
         )
 
-        self.service = app.ContactServicer()
-
     def test_list_contacts(self):
-        app.CONN = self.conn
-
         request = MagicMock()
         context = MagicMock()
 
@@ -43,8 +37,6 @@ class TestContacts(unittest.TestCase):
         self.assertEqual(len(resp.contacts), 1)
 
     def test_add_contact(self):
-        app.CONN = self.conn
-
         request = MagicMock()
         request.firstname = "Andy"
         request.lastname = "Dwyer"
@@ -65,8 +57,6 @@ class TestContacts(unittest.TestCase):
 
 
     def test_update_contact(self):
-        app.CONN = self.conn
-
         request = MagicMock()
         request.id = "1"
         request.firstname = "Andy"
@@ -87,8 +77,6 @@ class TestContacts(unittest.TestCase):
         self.assertEqual(resp.author, request.author)
 
     def test_delete_a_contact(self):
-        app.CONN = self.conn
-
         request = MagicMock()
         request.id = 1
         context = MagicMock()
