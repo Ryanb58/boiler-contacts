@@ -1,3 +1,7 @@
+# Help the system find the proto library:
+import sys
+sys.path.append('./protos')
+
 from concurrent import futures
 import os
 import time
